@@ -1,0 +1,27 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Cada usuário lê e grava somente o próprio documento: users/{uid}
+    // Formato gravado pelo app: { pos: [...], own: {...}, updatedAt: timestamp }
+    match /users/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+
+      allow create, update: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['pos', 'own', 'updatedAt'])
+        && request.resource.data.pos is list
+        && request.resource.data.pos.size() <= 500
+        && (!('own' in request.resource.data) || request.resource.data.own is map)
+        && (!('updatedAt' in request.resource.data) || request.resource.data.updatedAt is timestamp);
+
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Todo o resto fica bloqueado
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
